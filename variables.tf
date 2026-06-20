@@ -9,3 +9,8 @@ variable "tamano_vm" {
   type        = string
   default     = "Standard_B1s"
 }
+
+variable "public_key_path" {
+  type    = string
+  default = "~/.ssh/id_rsa.pub"
+}

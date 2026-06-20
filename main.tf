@@ -102,19 +102,9 @@ resource "azurerm_linux_virtual_machine" "vm" {
   disable_password_authentication = true
 
   admin_ssh_key {
-    username   = "azureuser"
-    public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCyFGFWSRsfW/
-    tcNHMfntDQ+9q0qv9ca3NbCehR2Z8l2EvnTO/rFEcbGG9fYdqk8w/F6mlJ7kCge20Y
-    3VEFTWRqu5i77pZc1Zjge0n6VXt5+Of4WnFHoQKRcPgGK/CYFsWq9xn3cG2htsL31XONHI
-    lXpyUKc159H+eLiNdTILY9juMJ9aYQ6d68gNYlrU0fmlj1ElUIe0sKZjMa9y4Mj6WUe//k7fHX
-    ZpQjrJj+x86u+uX4VoKN7o1wJQL/E2V2mdRrJ8yZ1sy0H/ULBfSvFEgwAAFybvz3ORwoR+vHshNX4h6S
-    PcmmbP1vaKXCcV49gDMYI0LGfsJaL2FwuDaXIhkB7Ut9SwA5pK83yyN5YNG4xry8NS4nmTmfCkYlsMxzm3O6zHm
-    AcaJ/xk5cZstzWKMqygR7XFSHdi2gFj2g01/RcBFaxcF2YGbVLOyE4ugLn8AegoVLeFdJPK+QH0TG7ectKlbvPOSwu
-    F5Hvig3BXDPFl2YZUg59/Dn4+KYFO13sf+iCLiO1EoLVkwbeSFl6TqWAh2RK22DlevoMhMbnbY+s60m/570YUsdC1ZNFf
-    E05IcAETsFzIZOB6wI0QI5Fgl/hA/pHHvipBBv0uVVF/O4ACn97iAatPkv/+zQ+L0BmThalf5QXN0yMiJHbI+BQV14iolhE
-    mpZ4GIXHubXZlUKsw== codespace@codespaces-acf64b"
-
-  }
+  username   = "azureuser"
+  public_key = file(var.public_key_path)
+}
 
   # Configuración del disco
   os_disk {
