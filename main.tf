@@ -1,5 +1,6 @@
-# Configuración de Terraform y versión del proveedor
 terraform {
+  required_version = ">= 1.5.0"
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -8,26 +9,22 @@ terraform {
   }
 }
 
-# Configuración del proveedor Azure
 provider "azurerm" {
   features {}
 }
 
-# Grupo de recursos
 resource "azurerm_resource_group" "rg" {
   name     = "TechUStart-RG"
   location = var.azure_region
 }
 
-# Red virtual
 resource "azurerm_virtual_network" "vnet" {
   name                = "TechUStart-VNet"
   address_space       = ["10.0.0.0/16"]
-  location            = var.azure_region
+  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
-# Subred
 resource "azurerm_subnet" "subnet" {
   name                 = "TechUStart-Subnet"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -35,40 +32,47 @@ resource "azurerm_subnet" "subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Dirección IP pública
 resource "azurerm_public_ip" "public_ip" {
   name                = "TechUStart-PublicIP"
-  location            = var.azure_region
+  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
+  sku                 = "Standard"
 }
 
-# Grupo de seguridad de red
 resource "azurerm_network_security_group" "nsg" {
   name                = "TechUStart-NSG"
-  location            = var.azure_region
+  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+
+  security_rule {
+    name                       = "AllowHTTP"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowSSH"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 }
 
-# Regla para permitir tráfico HTTP por el puerto 80
-resource "azurerm_network_security_rule" "http" {
-  name                        = "AllowHTTP"
-  priority                    = 100
-  direction                   = "Inbound"
-  access                      = "Allow"
-  protocol                    = "Tcp"
-  source_port_range           = "*"
-  destination_port_range      = "80"
-  source_address_prefix       = "*"
-  destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.rg.name
-  network_security_group_name = azurerm_network_security_group.nsg.name
-}
-
-# Interfaz de red
 resource "azurerm_network_interface" "nic" {
   name                = "TechUStart-NIC"
-  location            = var.azure_region
+  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
   ip_configuration {
@@ -79,40 +83,35 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
-# Asociación del grupo de seguridad con la interfaz de red
 resource "azurerm_network_interface_security_group_association" "nsg_assoc" {
   network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-# Máquina virtual Linux
 resource "azurerm_linux_virtual_machine" "vm" {
-
   name                = "TechUStart-VM"
   resource_group_name = azurerm_resource_group.rg.name
-  location            = var.azure_region
+  location            = azurerm_resource_group.rg.location
   size                = var.tamano_vm
-  admin_username      = "azureuser"
+  admin_username      = var.admin_username
 
   network_interface_ids = [
     azurerm_network_interface.nic.id
   ]
 
-  # Acceso mediante SSH
   disable_password_authentication = true
 
   admin_ssh_key {
-  username   = "azureuser"
-  public_key = file(var.public_key_path)
-}
+    username   = var.admin_username
+    public_key = file(var.public_key_path)
+  }
 
-  # Configuración del disco
   os_disk {
+    name                 = "TechUStart-OSDisk"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
 
-  # Imagen de Ubuntu Server
   source_image_reference {
     publisher = "Canonical"
     offer     = "0001-com-ubuntu-server-jammy"
@@ -120,13 +119,19 @@ resource "azurerm_linux_virtual_machine" "vm" {
     version   = "latest"
   }
 
-  # Script para instalar Apache automáticamente
-  custom_data = base64encode(<<EOF
-#!/bin/bash
-apt update
-apt install apache2 -y
-systemctl enable apache2
-systemctl start apache2
-EOF
+  custom_data = base64encode(<<-EOF
+    #!/bin/bash
+    apt-get update -y
+    apt-get install apache2 -y
+    systemctl enable apache2
+    systemctl start apache2
+    echo "<h1>TechUStart desplegado correctamente con Terraform en Azure</h1>" > /var/www/html/index.html
+  EOF
   )
+
+  tags = {
+    project     = "TechUStart"
+    environment = "dev"
+    tool        = "Terraform"
+  }
 }
